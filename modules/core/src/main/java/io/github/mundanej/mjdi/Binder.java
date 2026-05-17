@@ -13,6 +13,7 @@ import java.util.Set;
  */
 public final class Binder {
     private final Map<Key<?>, ContextProvider<?>> providers = new LinkedHashMap<>();
+    private int overrideDepth;
 
     /**
      * Creates an empty binder.
@@ -26,7 +27,21 @@ public final class Binder {
      * @return this binder for chaining
      */
     public Binder install(AppPluginModule module) {
-        Objects.requireNonNull(module, "module").configure(this);
+        configure(module, false);
+        return this;
+    }
+
+    /**
+     * Installs all bindings from a module, replacing existing bindings for matching keys.
+     *
+     * <p>Use this when an application intentionally wants a later module to override earlier module
+     * bindings. If the override module binds the same key more than once, the last binding wins.
+     *
+     * @param module the module to configure in override mode
+     * @return this binder for chaining
+     */
+    public Binder installOverride(AppPluginModule module) {
+        configure(module, true);
         return this;
     }
 
@@ -114,14 +129,30 @@ public final class Binder {
         return Set.copyOf(providers.keySet());
     }
 
-    AppContext build() {
+    /**
+     * Builds an immutable application context from the bindings registered so far.
+     *
+     * @return a context that can look up the current bindings
+     */
+    public AppContext build() {
         return new AppContext(providers);
+    }
+
+    private void configure(AppPluginModule module, boolean override) {
+        Objects.requireNonNull(module, "module");
+        int previousOverrideDepth = overrideDepth;
+        overrideDepth = override ? overrideDepth + 1 : 0;
+        try {
+            module.configure(this);
+        } finally {
+            overrideDepth = previousOverrideDepth;
+        }
     }
 
     private void put(Key<?> key, ContextProvider<?> provider) {
         Objects.requireNonNull(key, "key");
         Objects.requireNonNull(provider, "provider");
-        if (providers.containsKey(key)) {
+        if (overrideDepth == 0 && providers.containsKey(key)) {
             throw new IllegalStateException("duplicate binding for " + key);
         }
         providers.put(key, provider);

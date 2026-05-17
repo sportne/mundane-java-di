@@ -56,6 +56,62 @@ class BinderTest {
     }
 
     @Test
+    void normalInstallFailsWhenLaterModuleBindsSameKey() {
+        AppPluginModule first = binder -> binder.bindInstance(Widget.class, new Widget("first"));
+        AppPluginModule second = binder -> binder.bindInstance(Widget.class, new Widget("second"));
+
+        assertThrows(IllegalStateException.class, () -> BootstrapAppContext.create(List.of(first, second)));
+    }
+
+    @Test
+    void overrideInstallReplacesExistingBinding() {
+        Binder binder = new Binder()
+                .install(b -> b.bindInstance(Widget.class, new Widget("first")))
+                .installOverride(b -> b.bindInstance(Widget.class, new Widget("second")));
+
+        AppContext context = binder.build();
+
+        assertEquals("second", context.get(Widget.class).name());
+    }
+
+    @Test
+    void overrideInstallUsesLastBindingForDuplicateKey() {
+        Binder binder = new Binder().installOverride(b -> {
+            b.bindInstance(Widget.class, new Widget("first"));
+            b.bindInstance(Widget.class, new Widget("second"));
+        });
+
+        AppContext context = binder.build();
+
+        assertEquals("second", context.get(Widget.class).name());
+    }
+
+    @Test
+    void normalStrictBindingReturnsAfterOverrideInstall() {
+        Binder binder = new Binder()
+                .install(b -> b.bindInstance(Widget.class, new Widget("first")))
+                .installOverride(b -> b.bindInstance(Widget.class, new Widget("second")));
+
+        assertThrows(IllegalStateException.class, () -> binder.install(
+                b -> b.bindInstance(Widget.class, new Widget("third"))));
+        assertEquals("second", binder.build().get(Widget.class).name());
+    }
+
+    @Test
+    void normalStrictBindingReturnsWhenOverrideInstallThrows() {
+        Binder binder = new Binder().install(b -> b.bindInstance(Widget.class, new Widget("first")));
+        RuntimeException failure = new RuntimeException("failed");
+
+        assertSame(failure, assertThrows(RuntimeException.class, () -> binder.installOverride(b -> {
+            b.bindInstance(Widget.class, new Widget("second"));
+            throw failure;
+        })));
+        assertThrows(IllegalStateException.class, () -> binder.install(
+                b -> b.bindInstance(Widget.class, new Widget("third"))));
+        assertEquals("second", binder.build().get(Widget.class).name());
+    }
+
+    @Test
     void failsForMissingBinding() {
         AppContext context = BootstrapAppContext.create(List.of());
 
