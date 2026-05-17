@@ -14,15 +14,14 @@ The design is intentionally plain and explicit:
 
 ## Status
 
-Version `0.1.0` is the first releasable version. Current development targets `0.2.0-SNAPSHOT`. The
-core runtime has no runtime dependencies, and the generator depends only on the core module plus the
-JDK. Maven Central publishing is not set up; release artifacts are built locally from this
-repository.
+Version `1.0.0` is the first stable release. The core runtime has no runtime dependencies, and the
+generator depends only on the core module plus the JDK. Maven Central publishing is not set up;
+release artifacts are built locally from this repository.
 
 Artifact coordinates:
 
-- `io.github.mundanej:mundane-java-di:0.1.0`
-- `io.github.mundanej:mundane-java-di-generator:0.1.0`
+- `io.github.mundanej:mundane-java-di:1.0.0`
+- `io.github.mundanej:mundane-java-di-generator:1.0.0`
 
 ## Requirements
 
