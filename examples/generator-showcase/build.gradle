@@ -1,0 +1,78 @@
+plugins {
+    id 'mjdi.java-conventions'
+    id 'mjdi.quality-conventions'
+    id 'mjdi.coverage-conventions'
+}
+
+description = 'Code generator showcase example for mundane Java DI.'
+
+def generatedMjdiSourceDir = layout.buildDirectory.dir('generated/sources/mjdi')
+def generatedMjdiClassesDir = layout.buildDirectory.dir('classes/java/generatedMjdi')
+def mainJavaClassesDir = tasks.named('compileJava').flatMap { it.destinationDirectory }
+
+configurations {
+    mjdiGenerator
+}
+
+dependencies {
+    implementation project(':modules:core')
+
+    mjdiGenerator project(':modules:generator')
+    testImplementation project(':modules:generator')
+}
+
+tasks.register('generateMjdiModule', JavaExec) {
+    group = 'build'
+    description = 'Generates the showcase AppPluginModule from compiled @Inject classes.'
+    dependsOn tasks.named('classes')
+    classpath = configurations.mjdiGenerator + sourceSets.main.runtimeClasspath
+    mainClass = 'io.github.mundanej.mjdi.generator.GeneratorCli'
+    outputs.dir generatedMjdiSourceDir
+    doFirst {
+        args = [
+            '--output-dir', generatedMjdiSourceDir.get().asFile.absolutePath,
+            '--module-package', 'io.github.mundanej.mjdi.examples.showcase.generated',
+            '--module-class', 'GeneratedShowcaseModule',
+            '--package-root', 'io.github.mundanej.mjdi.examples.showcase',
+            '--scan-path', mainJavaClassesDir.get().asFile.absolutePath,
+            '--overwrite'
+        ]
+    }
+}
+
+tasks.register('dryRunMjdiModule', JavaExec) {
+    group = 'help'
+    description = 'Prints the generated showcase module without writing source files.'
+    dependsOn tasks.named('classes')
+    classpath = configurations.mjdiGenerator + sourceSets.main.runtimeClasspath
+    mainClass = 'io.github.mundanej.mjdi.generator.GeneratorCli'
+    outputs.upToDateWhen { false }
+    doFirst {
+        args = [
+            '--output-dir', generatedMjdiSourceDir.get().asFile.absolutePath,
+            '--module-package', 'io.github.mundanej.mjdi.examples.showcase.generated',
+            '--module-class', 'GeneratedShowcaseModule',
+            '--package-root', 'io.github.mundanej.mjdi.examples.showcase',
+            '--scan-path', mainJavaClassesDir.get().asFile.absolutePath,
+            '--dry-run'
+        ]
+    }
+}
+
+tasks.register('compileGeneratedMjdi', JavaCompile) {
+    group = 'build'
+    description = 'Compiles the showcase module emitted by generateMjdiModule.'
+    dependsOn tasks.named('generateMjdiModule')
+    source generatedMjdiSourceDir
+    classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+    destinationDirectory = generatedMjdiClassesDir
+}
+
+tasks.named('test') {
+    dependsOn tasks.named('compileGeneratedMjdi')
+    classpath += files(generatedMjdiClassesDir)
+}
+
+base {
+    archivesName = 'mundane-java-di-generator-showcase-example'
+}

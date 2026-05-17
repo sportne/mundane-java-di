@@ -34,6 +34,8 @@ Artifact coordinates:
 - `modules/core` contains the runtime API.
 - `modules/generator` contains JDK-only build-time source generation support.
 - `examples/basic` contains a tiny example module and usage test.
+- `examples/generator-showcase` demonstrates generator Gradle tasks, dry runs, and programmatic
+  generator API usage.
 - `docs/architecture/architecture-rule-catalog.md` documents the rules enforced by ArchUnit.
 - `build-logic` contains small Gradle convention plugins shared by the modules.
 

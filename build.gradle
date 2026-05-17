@@ -11,6 +11,7 @@ def checkedProjects = [
     ':modules:core',
     ':modules:generator',
     ':examples:basic',
+    ':examples:generator-showcase',
 ]
 
 tasks.register('checkAll') {
