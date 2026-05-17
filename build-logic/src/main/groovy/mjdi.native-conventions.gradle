@@ -1,0 +1,50 @@
+import org.graalvm.buildtools.gradle.tasks.BuildNativeImageTask
+import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.tasks.bundling.Jar
+
+plugins {
+    id 'org.graalvm.buildtools.native'
+}
+
+graalvmNative {
+    toolchainDetection = true
+    metadataRepository {
+        enabled = false
+    }
+    binaries {
+        test {
+            quickBuild = true
+            useFatJar = true
+            buildArgs.add('--no-fallback')
+            buildArgs.add('-H:+ReportExceptionStackTraces')
+        }
+    }
+}
+
+tasks.withType(BuildNativeImageTask).configureEach {
+    metadataRepositoryEnabled = false
+    metadataRepositoryRootPath = ''
+    doFirst {
+        testListDirectory.get().asFileTree.matching {
+            include '**/junit-platform-unique-ids*.txt'
+        }.files.each { testList ->
+            def runtimeTestIds = testList.readLines('UTF-8')
+                .findAll { !it.startsWith('[engine:archunit]') }
+            testList.write(runtimeTestIds.join(System.lineSeparator()) + System.lineSeparator(), 'UTF-8')
+        }
+    }
+}
+
+tasks.named('nativeTestCompileClasspathJar', Jar).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    eachFile { fileCopyDetails ->
+        if (fileCopyDetails.path.startsWith('com/tngtech/archunit/')
+            || fileCopyDetails.path.endsWith('ArchitectureTest.class')) {
+            fileCopyDetails.exclude()
+        }
+        if (fileCopyDetails.path == 'META-INF/services/org.junit.platform.engine.TestEngine'
+            && fileCopyDetails.file.path.contains('archunit')) {
+            fileCopyDetails.exclude()
+        }
+    }
+}

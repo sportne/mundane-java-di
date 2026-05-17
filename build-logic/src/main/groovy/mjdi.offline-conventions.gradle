@@ -1,0 +1,13 @@
+tasks.register('printOfflineBuildInstructions') {
+    group = 'build setup'
+    description = 'Prints instructions for using a local Maven-style dependency repository.'
+    doLast {
+        println '''
+To build with a local dependency repository, pass:
+
+  ./gradlew -Pmjdi.offlineRepo=/path/to/maven-repository qualityGate
+
+The repository must already contain Gradle plugins and normal project dependencies.
+'''.stripIndent()
+    }
+}

@@ -1,0 +1,37 @@
+pluginManagement {
+    def offlineRepoPath = providers.gradleProperty('mjdi.offlineRepo').orNull
+
+    includeBuild 'build-logic'
+
+    repositories {
+        if (offlineRepoPath != null && !offlineRepoPath.isBlank()) {
+            maven { url = uri(offlineRepoPath) }
+        } else {
+            gradlePluginPortal()
+            mavenCentral()
+        }
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+dependencyResolutionManagement {
+    def offlineRepoPath = providers.gradleProperty('mjdi.offlineRepo').orNull
+
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
+    repositories {
+        if (offlineRepoPath != null && !offlineRepoPath.isBlank()) {
+            maven { url = uri(offlineRepoPath) }
+        } else {
+            mavenCentral()
+        }
+    }
+}
+
+rootProject.name = 'mundane-java-di'
+include ':modules:core'
+include ':modules:generator'
+include ':examples:basic'

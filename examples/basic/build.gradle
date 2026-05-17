@@ -1,0 +1,16 @@
+plugins {
+    id 'mjdi.java-conventions'
+    id 'mjdi.coverage-conventions'
+    id 'mjdi.native-conventions'
+}
+
+description = 'Basic usage example for mundane Java DI.'
+
+dependencies {
+    implementation project(':modules:core')
+    implementation project(':modules:generator')
+}
+
+base {
+    archivesName = 'mundane-java-di-basic-example'
+}

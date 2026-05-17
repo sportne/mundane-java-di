@@ -1,0 +1,15 @@
+plugins {
+    id 'base'
+}
+
+group = 'io.github.mundanej'
+version = providers.gradleProperty('mjdi.version').getOrElse('0.1.0-SNAPSHOT')
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+dependencyLocking {
+    lockAllConfigurations()
+}

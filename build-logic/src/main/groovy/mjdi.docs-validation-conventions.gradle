@@ -1,0 +1,19 @@
+def requiredFilePaths = [
+    'README.md',
+    'AGENTS.md',
+    'docs/architecture/architecture-rule-catalog.md',
+]
+
+def requiredFiles = requiredFilePaths.collect { layout.projectDirectory.file(it) }
+
+tasks.register('validateDesignControlPack') {
+    group = 'verification'
+    description = 'Validates that required project documentation files are present.'
+    inputs.files(requiredFiles)
+    doLast {
+        def missing = requiredFiles.findAll { !it.asFile.exists() }
+        if (!missing.empty) {
+            throw new GradleException('Project documentation files missing: ' + missing.collect { it.asFile }.join(', '))
+        }
+    }
+}

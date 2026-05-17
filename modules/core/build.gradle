@@ -1,0 +1,11 @@
+plugins {
+    id 'mjdi.java-conventions'
+    id 'mjdi.coverage-conventions'
+    id 'mjdi.native-conventions'
+}
+
+description = 'Small provider-based dependency injection runtime with no third-party runtime dependencies.'
+
+base {
+    archivesName = 'mundane-java-di'
+}

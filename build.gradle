@@ -1,0 +1,55 @@
+plugins {
+    id 'base'
+    id 'mjdi.docs-validation-conventions'
+    id 'mjdi.offline-conventions'
+}
+
+group = 'io.github.mundanej'
+version = providers.gradleProperty('mjdi.version').getOrElse('0.1.0-SNAPSHOT')
+
+def checkedProjects = [
+    ':modules:core',
+    ':modules:generator',
+    ':examples:basic',
+]
+
+tasks.register('checkAll') {
+    group = 'verification'
+    description = 'Runs check tasks across all included mundane Java DI projects.'
+    dependsOn checkedProjects.collect { "${it}:check" }
+}
+
+tasks.register('qualityGate') {
+    group = 'verification'
+    description = 'Runs the default local quality gate.'
+    dependsOn 'validateDesignControlPack', 'checkAll'
+    dependsOn checkedProjects.collect { "${it}:jacocoTestCoverageVerification" }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('qualityGate')
+}
+
+tasks.register('nativeSmoke') {
+    group = 'verification'
+    description = 'Runs the representative GraalVM Native Image smoke lane.'
+    dependsOn ':modules:core:nativeTest'
+    dependsOn ':examples:basic:nativeTest'
+}
+
+tasks.register('jacocoTestCoverageVerification') {
+    group = 'verification'
+    description = 'Runs coverage verification for all Java projects.'
+    dependsOn checkedProjects.collect { "${it}:jacocoTestCoverageVerification" }
+}
+
+tasks.register('printPublishedArtifacts') {
+    group = 'help'
+    description = 'Prints planned artifact coordinates.'
+    doLast {
+        println '''
+:modules:core       -> io.github.mundanej:mundane-java-di
+:modules:generator  -> io.github.mundanej:mundane-java-di-generator
+'''.stripIndent()
+    }
+}
