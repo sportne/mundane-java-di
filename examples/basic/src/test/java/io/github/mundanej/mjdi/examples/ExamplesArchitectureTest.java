@@ -14,96 +14,98 @@ import java.util.Locale;
 import java.util.Properties;
 import java.util.TimeZone;
 
-@AnalyzeClasses(packages = "io.github.mundanej.mjdi.examples", importOptions = DoNotIncludeTests.class)
+@AnalyzeClasses(
+    packages = "io.github.mundanej.mjdi.examples",
+    importOptions = DoNotIncludeTests.class)
 final class ExamplesArchitectureTest {
-    @ArchTest
-    static final ArchRule project_specific_examples_do_not_use_classpath_scanning =
-            noClasses()
-                    .should()
-                    .dependOnClassesThat()
-                    .resideInAnyPackage("io.github.classgraph..", "org.reflections..");
+  @ArchTest
+  static final ArchRule project_specific_examples_do_not_use_classpath_scanning =
+      noClasses()
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("io.github.classgraph..", "org.reflections..");
 
-    @ArchTest
-    static final ArchRule baseline_examples_avoid_serialization_and_internal_jdk_apis =
-            noClasses()
-                    .should()
-                    .dependOnClassesThat()
-                    .haveFullyQualifiedName("java.io.ObjectInputStream")
-                    .orShould()
-                    .dependOnClassesThat()
-                    .haveFullyQualifiedName("java.io.ObjectOutputStream")
-                    .orShould()
-                    .dependOnClassesThat()
-                    .haveFullyQualifiedName("java.io.Externalizable")
-                    .orShould()
-                    .dependOnClassesThat()
-                    .resideInAnyPackage("sun..", "jdk.internal..");
+  @ArchTest
+  static final ArchRule baseline_examples_avoid_serialization_and_internal_jdk_apis =
+      noClasses()
+          .should()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("java.io.ObjectInputStream")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("java.io.ObjectOutputStream")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("java.io.Externalizable")
+          .orShould()
+          .dependOnClassesThat()
+          .resideInAnyPackage("sun..", "jdk.internal..");
 
-    @ArchTest
-    static final ArchRule baseline_examples_avoids_serialization_hooks =
-            noMethods()
-                    .should()
-                    .haveName("readObject")
-                    .orShould()
-                    .haveName("writeObject")
-                    .orShould()
-                    .haveName("readResolve")
-                    .orShould()
-                    .haveName("writeReplace");
+  @ArchTest
+  static final ArchRule baseline_examples_avoids_serialization_hooks =
+      noMethods()
+          .should()
+          .haveName("readObject")
+          .orShould()
+          .haveName("writeObject")
+          .orShould()
+          .haveName("readResolve")
+          .orShould()
+          .haveName("writeReplace");
 
-    @ArchTest
-    static final ArchRule baseline_examples_does_not_terminate_spawn_processes_or_force_gc =
-            noClasses()
-                    .should()
-                    .callMethod(System.class, "exit", int.class)
-                    .orShould()
-                    .callMethod(System.class, "gc")
-                    .orShould()
-                    .dependOnClassesThat()
-                    .haveFullyQualifiedName("java.lang.Runtime")
-                    .orShould()
-                    .dependOnClassesThat()
-                    .haveFullyQualifiedName("java.lang.ProcessBuilder");
+  @ArchTest
+  static final ArchRule baseline_examples_does_not_terminate_spawn_processes_or_force_gc =
+      noClasses()
+          .should()
+          .callMethod(System.class, "exit", int.class)
+          .orShould()
+          .callMethod(System.class, "gc")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("java.lang.Runtime")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName("java.lang.ProcessBuilder");
 
-    @ArchTest
-    static final ArchRule baseline_examples_has_no_finalizers =
-            noMethods().should().haveName("finalize");
+  @ArchTest
+  static final ArchRule baseline_examples_has_no_finalizers =
+      noMethods().should().haveName("finalize");
 
-    @ArchTest
-    static final ArchRule baseline_examples_has_no_public_static_mutable_fields =
-            fields().that().arePublic().and().areStatic().should().beFinal().allowEmptyShould(true);
+  @ArchTest
+  static final ArchRule baseline_examples_has_no_public_static_mutable_fields =
+      fields().that().arePublic().and().areStatic().should().beFinal().allowEmptyShould(true);
 
-    @ArchTest
-    static final ArchRule baseline_examples_has_no_native_methods =
-            noMethods().should().haveModifier(JavaModifier.NATIVE);
+  @ArchTest
+  static final ArchRule baseline_examples_has_no_native_methods =
+      noMethods().should().haveModifier(JavaModifier.NATIVE);
 
-    @ArchTest
-    static final ArchRule baseline_examples_does_not_mutate_global_jvm_state =
-            noClasses()
-                    .should()
-                    .callMethod(System.class, "setProperties", Properties.class)
-                    .orShould()
-                    .callMethod(System.class, "setProperty", String.class, String.class)
-                    .orShould()
-                    .callMethod(System.class, "clearProperty", String.class)
-                    .orShould()
-                    .callMethod(System.class, "setOut", PrintStream.class)
-                    .orShould()
-                    .callMethod(System.class, "setErr", PrintStream.class)
-                    .orShould()
-                    .callMethod(Locale.class, "setDefault", Locale.class)
-                    .orShould()
-                    .callMethod(TimeZone.class, "setDefault", TimeZone.class);
+  @ArchTest
+  static final ArchRule baseline_examples_does_not_mutate_global_jvm_state =
+      noClasses()
+          .should()
+          .callMethod(System.class, "setProperties", Properties.class)
+          .orShould()
+          .callMethod(System.class, "setProperty", String.class, String.class)
+          .orShould()
+          .callMethod(System.class, "clearProperty", String.class)
+          .orShould()
+          .callMethod(System.class, "setOut", PrintStream.class)
+          .orShould()
+          .callMethod(System.class, "setErr", PrintStream.class)
+          .orShould()
+          .callMethod(Locale.class, "setDefault", Locale.class)
+          .orShould()
+          .callMethod(TimeZone.class, "setDefault", TimeZone.class);
 
-    @ArchTest
-    static final ArchRule baseline_examples_does_not_use_deprecated_thread_control =
-            noClasses()
-                    .should()
-                    .callMethod(Thread.class, "stop")
-                    .orShould()
-                    .callMethod(Thread.class, "suspend")
-                    .orShould()
-                    .callMethod(Thread.class, "resume");
+  @ArchTest
+  static final ArchRule baseline_examples_does_not_use_deprecated_thread_control =
+      noClasses()
+          .should()
+          .callMethod(Thread.class, "stop")
+          .orShould()
+          .callMethod(Thread.class, "suspend")
+          .orShould()
+          .callMethod(Thread.class, "resume");
 
-    private ExamplesArchitectureTest() {}
+  private ExamplesArchitectureTest() {}
 }

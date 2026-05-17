@@ -15,45 +15,56 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ApiAnnotationTest {
-    @Test
-    void injectHasRuntimeRetentionAndConstructorTarget() throws NoSuchMethodException {
-        assertEquals(RetentionPolicy.RUNTIME, Inject.class.getAnnotation(Retention.class).value());
-        assertEquals(Set.of(ElementType.CONSTRUCTOR), targetsOf(Inject.class));
+  @Test
+  void injectHasRuntimeRetentionAndConstructorTarget() throws NoSuchMethodException {
+    assertEquals(RetentionPolicy.RUNTIME, Inject.class.getAnnotation(Retention.class).value());
+    assertEquals(Set.of(ElementType.CONSTRUCTOR), targetsOf(Inject.class));
 
-        Constructor<Fixture> constructor = Fixture.class.getDeclaredConstructor(String.class);
+    Constructor<Fixture> constructor = Fixture.class.getDeclaredConstructor(String.class);
 
-        assertNotNull(constructor.getAnnotation(Inject.class));
+    assertNotNull(constructor.getAnnotation(Inject.class));
+    assertEquals("dependency", new Fixture("dependency").dependency());
+  }
+
+  @Test
+  void namedHasRuntimeRetentionAndTypeAndParameterTargets() throws NoSuchMethodException {
+    assertEquals(RetentionPolicy.RUNTIME, Named.class.getAnnotation(Retention.class).value());
+    assertEquals(Set.of(ElementType.TYPE, ElementType.PARAMETER), targetsOf(Named.class));
+
+    Named typeName = Fixture.class.getAnnotation(Named.class);
+    Named parameterName =
+        Fixture.class
+            .getDeclaredConstructor(String.class)
+            .getParameters()[0]
+            .getAnnotation(Named.class);
+
+    assertEquals("fixture", typeName.value());
+    assertEquals("dependency", parameterName.value());
+  }
+
+  @Test
+  void namedValueIsARequiredStringMember() throws NoSuchMethodException {
+    Method value = Named.class.getDeclaredMethod("value");
+
+    assertEquals(String.class, value.getReturnType());
+    assertNull(value.getDefaultValue());
+  }
+
+  private static Set<ElementType> targetsOf(Class<?> annotationType) {
+    return Set.copyOf(Arrays.asList(annotationType.getAnnotation(Target.class).value()));
+  }
+
+  @Named("fixture")
+  private static final class Fixture {
+    private final String dependency;
+
+    @Inject
+    Fixture(@Named("dependency") String dependency) {
+      this.dependency = dependency;
     }
 
-    @Test
-    void namedHasRuntimeRetentionAndTypeAndParameterTargets() throws NoSuchMethodException {
-        assertEquals(RetentionPolicy.RUNTIME, Named.class.getAnnotation(Retention.class).value());
-        assertEquals(Set.of(ElementType.TYPE, ElementType.PARAMETER), targetsOf(Named.class));
-
-        Named typeName = Fixture.class.getAnnotation(Named.class);
-        Named parameterName = Fixture.class.getDeclaredConstructor(String.class)
-                .getParameters()[0]
-                .getAnnotation(Named.class);
-
-        assertEquals("fixture", typeName.value());
-        assertEquals("dependency", parameterName.value());
+    private String dependency() {
+      return dependency;
     }
-
-    @Test
-    void namedValueIsARequiredStringMember() throws NoSuchMethodException {
-        Method value = Named.class.getDeclaredMethod("value");
-
-        assertEquals(String.class, value.getReturnType());
-        assertNull(value.getDefaultValue());
-    }
-
-    private static Set<ElementType> targetsOf(Class<?> annotationType) {
-        return Set.copyOf(Arrays.asList(annotationType.getAnnotation(Target.class).value()));
-    }
-
-    @Named("fixture")
-    private static final class Fixture {
-        @Inject
-        Fixture(@Named("dependency") String dependency) {}
-    }
+  }
 }

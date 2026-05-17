@@ -1,5 +1,6 @@
 plugins {
     id 'mjdi.java-conventions'
+    id 'mjdi.quality-conventions'
     id 'mjdi.coverage-conventions'
 }
 
@@ -7,6 +8,8 @@ description = 'Build-time source generator support for mundane Java DI modules.'
 
 dependencies {
     api project(':modules:core')
+    testImplementation libs.checkstyle
+    testImplementation libs.google.java.format
 }
 
 base {

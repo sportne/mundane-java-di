@@ -5,14 +5,14 @@ import io.github.mundanej.mjdi.Named;
 
 @Named("consumer")
 public final class NamedConsumer {
-    private final NamedRepository repository;
+  private final NamedRepository repository;
 
-    @Inject
-    public NamedConsumer(@Named("main") NamedRepository repository) {
-        this.repository = repository;
-    }
+  @Inject
+  public NamedConsumer(@Named("main") NamedRepository repository) {
+    this.repository = repository;
+  }
 
-    public NamedRepository repository() {
-        return repository;
-    }
+  public NamedRepository repository() {
+    return repository;
+  }
 }

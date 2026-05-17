@@ -7,8 +7,8 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 class CoreNativeImageMetadataTest {
-    @Test
-    void coreDoesNotShipReachabilityMetadataWorkarounds() {
-        assertFalse(Files.exists(Path.of("src/main/resources/META-INF/native-image")));
-    }
+  @Test
+  void coreDoesNotShipReachabilityMetadataWorkarounds() {
+    assertFalse(Files.exists(Path.of("src/main/resources/META-INF/native-image")));
+  }
 }

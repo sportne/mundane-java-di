@@ -10,6 +10,16 @@ tasks.withType(AbstractArchiveTask).configureEach {
     reproducibleFileOrder = true
 }
 
+tasks.withType(Jar).configureEach {
+    manifest {
+        attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'io.github.mundanej'
+        )
+    }
+}
+
 dependencyLocking {
     lockAllConfigurations()
 }

@@ -1,5 +1,6 @@
 plugins {
     id 'mjdi.java-conventions'
+    id 'mjdi.quality-conventions'
     id 'mjdi.coverage-conventions'
     id 'mjdi.native-conventions'
 }

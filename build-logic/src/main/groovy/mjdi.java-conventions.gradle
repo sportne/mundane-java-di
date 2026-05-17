@@ -4,6 +4,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 plugins {
     id 'mjdi.identity-conventions'
     id 'java-library'
+    id 'net.ltgt.errorprone'
 }
 
 def libs = extensions.getByType(VersionCatalogsExtension).named('libs')
@@ -24,12 +25,15 @@ dependencies {
     testImplementation libs.findLibrary('junit-jupiter').get()
     testRuntimeOnly libs.findLibrary('junit-platform-launcher').get()
     testImplementation libs.findLibrary('archunit-junit5').get()
+    errorprone libs.findLibrary('errorprone-core').get()
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = javaRelease
     options.compilerArgs.addAll(['-Xlint:all', '-Werror', '-parameters'])
+    options.errorprone.disableWarningsInGeneratedCode.set(true)
+    options.errorprone.excludedPaths.set('.*/build/generated/.*')
 }
 
 tasks.withType(Test).configureEach {

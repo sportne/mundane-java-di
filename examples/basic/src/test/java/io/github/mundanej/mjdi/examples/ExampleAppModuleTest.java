@@ -7,11 +7,12 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ExampleAppModuleTest {
-    @Test
-    void moduleProvidesService() {
-        ExampleAppModule.Service service = BootstrapAppContext.create(List.of(new ExampleAppModule()))
-                .get(ExampleAppModule.Service.class);
+  @Test
+  void moduleProvidesService() {
+    ExampleAppModule.Service service =
+        BootstrapAppContext.create(List.of(new ExampleAppModule()))
+            .get(ExampleAppModule.Service.class);
 
-        assertEquals("example", service.value());
-    }
+    assertEquals("example", service.value());
+  }
 }

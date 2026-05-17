@@ -24,6 +24,8 @@ tasks.register('qualityGate') {
     description = 'Runs the default local quality gate.'
     dependsOn 'validateDesignControlPack', 'checkAll'
     dependsOn checkedProjects.collect { "${it}:jacocoTestCoverageVerification" }
+    dependsOn checkedProjects.collect { "${it}:spotlessCheck" }
+    dependsOn checkedProjects.collect { "${it}:javadoc" }
 }
 
 tasks.named('check') {

@@ -10,11 +10,11 @@ package io.github.mundanej.mjdi;
  */
 @FunctionalInterface
 public interface ContextProvider<T> {
-    /**
-     * Returns an object using the supplied application context.
-     *
-     * @param context the context that can provide other dependencies
-     * @return the provided object
-     */
-    T get(AppContext context);
+  /**
+   * Returns an object using the supplied application context.
+   *
+   * @param context the context that can provide other dependencies
+   * @return the provided object
+   */
+  T get(AppContext context);
 }

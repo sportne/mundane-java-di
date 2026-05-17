@@ -5,6 +5,6 @@ import io.github.mundanej.mjdi.Named;
 
 @Named("main")
 public final class NamedRepository {
-    @Inject
-    public NamedRepository() {}
+  @Inject
+  public NamedRepository() {}
 }

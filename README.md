@@ -26,7 +26,7 @@ Artifact coordinates:
 
 ## Requirements
 
-- Java 17 or newer for normal JVM builds.
+- Java 21 or newer for normal JVM builds and generated-source quality checks.
 - GraalVM with `native-image` for the native smoke lane.
 - Gradle wrapper from this repository.
 
@@ -107,8 +107,9 @@ public final class Service {
 }
 ```
 
-The generator scans the current Java process classpath at build time and writes an
-`AppPluginModule` source file. Put application classes on the Java command classpath, then run:
+The generator scans compiled classes at build time and writes an `AppPluginModule` source file. By
+default it scans the Java process classpath. You can also pass explicit classpath directories or jars
+with `--scan-path`, which is easier to use from build scripts:
 
 ```bash
 java -cp "app-classes:mundane-java-di.jar:mundane-java-di-generator.jar" \
@@ -116,15 +117,18 @@ java -cp "app-classes:mundane-java-di.jar:mundane-java-di-generator.jar" \
   --output-dir build/generated/sources/mjdi \
   --module-package com.example.generated \
   --module-class GeneratedAppModule \
-  --package-root com.example
+  --package-root com.example \
+  --scan-path build/classes/java/main
 ```
 
-Use `--dry-run` to print generated source without writing a file. Use `--overwrite` when replacing
-an existing generated module with different content.
+Use `--dry-run` to print generated source without writing a file, `--overwrite` when replacing an
+existing generated module with different content, `--help` for CLI usage, and `--version` for the
+generator implementation version.
 
 Generated source is intended to be checked like normal project source. It includes public Javadocs,
-compiles with warnings as errors, uses direct constructor calls, defaults to singleton bindings, and
-stays free of runtime reflection, classpath scanning, service loading, and serialization.
+compiles with warnings as errors, passes the same Checkstyle and Google Java Format conventions used
+by this repository, uses direct constructor calls, defaults to singleton bindings, and stays free of
+runtime reflection, classpath scanning, service loading, and serialization.
 
 Generated output looks like ordinary module code:
 
@@ -140,6 +144,9 @@ Run the normal local gate:
 ```bash
 ./gradlew qualityGate
 ```
+
+The local gate includes tests, ArchUnit rules, JaCoCo coverage verification, Javadocs, Checkstyle,
+SpotBugs, Error Prone compilation, and Spotless formatting checks.
 
 Run all JVM checks:
 

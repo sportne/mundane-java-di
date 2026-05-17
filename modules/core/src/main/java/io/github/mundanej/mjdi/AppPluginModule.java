@@ -8,10 +8,10 @@ package io.github.mundanej.mjdi;
  */
 @FunctionalInterface
 public interface AppPluginModule {
-    /**
-     * Registers this module's bindings.
-     *
-     * @param binder the binder that collects providers and instances
-     */
-    void configure(Binder binder);
+  /**
+   * Registers this module's bindings.
+   *
+   * @param binder the binder that collects providers and instances
+   */
+  void configure(Binder binder);
 }
