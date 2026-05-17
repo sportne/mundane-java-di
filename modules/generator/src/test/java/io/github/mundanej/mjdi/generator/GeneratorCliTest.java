@@ -2,6 +2,7 @@ package io.github.mundanej.mjdi.generator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.mundanej.mjdi.generator.fixtures.valid.Repository;
@@ -11,6 +12,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -81,6 +83,28 @@ class GeneratorCliTest {
     }
 
     @Test
+    void missingPackageRootFailsBeforeWritingFile() {
+        CliResult result = runCli(
+                "--output-dir",
+                tempDir.toString(),
+                "--module-package",
+                "com.example.generated",
+                "--module-class",
+                "GeneratedAppModule");
+
+        assertEquals(1, result.exitCode());
+        assertTrue(result.err().contains("at least one package root is required"));
+        assertFalse(Files.exists(tempDir.resolve("com/example/generated/GeneratedAppModule.java")));
+    }
+
+    @Test
+    void blankOptionValuesFailBeforeWritingFile() {
+        assertBlankValueFails("--module-package", "--module-package is required");
+        assertBlankValueFails("--module-class", "--module-class is required");
+        assertBlankValueFails("--package-root", "package roots must not be blank");
+    }
+
+    @Test
     void unknownArgumentFails() {
         CliResult result = runCli("--unknown");
 
@@ -94,6 +118,33 @@ class GeneratorCliTest {
 
         assertEquals(1, result.exitCode());
         assertTrue(result.err().contains("--output-dir requires a value"));
+    }
+
+    @Test
+    void missingOptionValueFollowedByAnotherFlagFails() {
+        CliResult result = runCli("--output-dir", "--module-package", "com.example.generated");
+
+        assertEquals(1, result.exitCode());
+        assertTrue(result.err().contains("--output-dir requires a value"));
+    }
+
+    @Test
+    void multiplePackageRootsAreScanned() throws Exception {
+        CliResult result = withFixtureClasspath(() -> runCli(
+                "--output-dir",
+                tempDir.toString(),
+                "--module-package",
+                "com.example.generated",
+                "--module-class",
+                "GeneratedAppModule",
+                "--package-root",
+                "io.github.mundanej.mjdi.generator.fixtures.missing",
+                "--package-root",
+                "io.github.mundanej.mjdi.generator.fixtures.valid",
+                "--dry-run"));
+
+        assertEquals(0, result.exitCode());
+        assertTrue(result.out().contains("io.github.mundanej.mjdi.generator.fixtures.valid.Service.class"));
     }
 
     @Test
@@ -111,6 +162,96 @@ class GeneratorCliTest {
         assertEquals(1, result.exitCode());
         assertTrue(result.err().contains("moduleClassName must be a simple Java name"));
         assertFalse(Files.exists(tempDir.resolve("com/example/generated/class.java")));
+    }
+
+    @Test
+    void scannerFailurePropagatesWithoutPartialFile() throws Exception {
+        CliResult result = withFixtureClasspath(() -> runCli(
+                "--output-dir",
+                tempDir.toString(),
+                "--module-package",
+                "com.example.generated",
+                "--module-class",
+                "GeneratedAppModule",
+                "--package-root",
+                "io.github.mundanej.mjdi.generator.fixtures.invalid.multiple"));
+
+        assertEquals(1, result.exitCode());
+        assertTrue(result.err().contains("has multiple @Inject constructors"));
+        assertFalse(Files.exists(tempDir.resolve("com/example/generated/GeneratedAppModule.java")));
+    }
+
+    @Test
+    void nullRunPreconditionsThrow() {
+        PrintStream stream = new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8);
+        GeneratorCli cli = new GeneratorCli();
+
+        assertEquals(
+                "args",
+                assertThrows(
+                                NullPointerException.class,
+                                () -> cli.run(null, stream, stream))
+                        .getMessage());
+        assertEquals(
+                "out",
+                assertThrows(
+                                NullPointerException.class,
+                                () -> cli.run(new String[0], null, stream))
+                        .getMessage());
+        assertEquals(
+                "err",
+                assertThrows(
+                                NullPointerException.class,
+                                () -> cli.run(new String[0], stream, null))
+                        .getMessage());
+    }
+
+    @Test
+    void outputDirAsFileFailsWithoutReplacingFile() throws Exception {
+        Path outputFile = tempDir.resolve("not-a-directory");
+        Files.writeString(outputFile, "existing", StandardCharsets.UTF_8);
+
+        CliResult result = withFixtureClasspath(() -> runCli(
+                "--output-dir",
+                outputFile.toString(),
+                "--module-package",
+                "com.example.generated",
+                "--module-class",
+                "GeneratedAppModule",
+                "--package-root",
+                "io.github.mundanej.mjdi.generator.fixtures.valid"));
+
+        assertEquals(1, result.exitCode());
+        assertTrue(result.err().contains("usage: GeneratorCli"));
+        assertEquals("existing", Files.readString(outputFile, StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void mainCanGenerateSourceInForkedJvm() throws Exception {
+        Path stdout = tempDir.resolve("generator-cli-main.out");
+        Path stderr = tempDir.resolve("generator-cli-main.err");
+        Process process = new ProcessBuilder(
+                        javaCommand().toString(),
+                        "-cp",
+                        System.getProperty("java.class.path"),
+                        GeneratorCli.class.getName(),
+                        "--output-dir",
+                        tempDir.toString(),
+                        "--module-package",
+                        "com.example.generated",
+                        "--module-class",
+                        "GeneratedAppModule",
+                        "--package-root",
+                        "io.github.mundanej.mjdi.generator.fixtures.valid")
+                .redirectOutput(stdout.toFile())
+                .redirectError(stderr.toFile())
+                .start();
+
+        assertTrue(process.waitFor(30, TimeUnit.SECONDS), "forked GeneratorCli.main did not finish");
+        assertEquals(0, process.exitValue());
+        assertEquals("", Files.readString(stderr, StandardCharsets.UTF_8));
+        assertTrue(Files.readString(tempDir.resolve("com/example/generated/GeneratedAppModule.java"))
+                .contains("public final class GeneratedAppModule implements AppPluginModule"));
     }
 
     @Test
@@ -168,6 +309,31 @@ class GeneratorCliTest {
 
         assertEquals(0, first.exitCode());
         assertEquals(0, second.exitCode());
+    }
+
+    private void assertBlankValueFails(String option, String expectedError) {
+        CliResult result = runCli(
+                "--output-dir",
+                tempDir.toString(),
+                "--module-package",
+                option.equals("--module-package") ? " " : "com.example.generated",
+                "--module-class",
+                option.equals("--module-class") ? " " : "GeneratedAppModule",
+                "--package-root",
+                option.equals("--package-root")
+                        ? " "
+                        : "io.github.mundanej.mjdi.generator.fixtures.valid");
+
+        assertEquals(1, result.exitCode());
+        assertTrue(result.err().contains(expectedError));
+        assertFalse(Files.exists(tempDir.resolve("com/example/generated/GeneratedAppModule.java")));
+    }
+
+    private static Path javaCommand() {
+        String executable = System.getProperty("os.name").toLowerCase().contains("win")
+                ? "java.exe"
+                : "java";
+        return Path.of(System.getProperty("java.home"), "bin", executable);
     }
 
     private static CliResult runCli(String... args) {

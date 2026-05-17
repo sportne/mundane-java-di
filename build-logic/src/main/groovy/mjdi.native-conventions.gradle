@@ -30,6 +30,7 @@ tasks.withType(BuildNativeImageTask).configureEach {
         }.files.each { testList ->
             def runtimeTestIds = testList.readLines('UTF-8')
                 .findAll { !it.startsWith('[engine:archunit]') }
+                .findAll { !it.contains('JvmOnly') }
             testList.write(runtimeTestIds.join(System.lineSeparator()) + System.lineSeparator(), 'UTF-8')
         }
     }
@@ -40,6 +41,9 @@ tasks.named('nativeTestCompileClasspathJar', Jar).configure {
     eachFile { fileCopyDetails ->
         if (fileCopyDetails.path.startsWith('com/tngtech/archunit/')
             || fileCopyDetails.path.endsWith('ArchitectureTest.class')) {
+            fileCopyDetails.exclude()
+        }
+        if (fileCopyDetails.path.contains('JvmOnlyTest')) {
             fileCopyDetails.exclude()
         }
         if (fileCopyDetails.path == 'META-INF/services/org.junit.platform.engine.TestEngine'
