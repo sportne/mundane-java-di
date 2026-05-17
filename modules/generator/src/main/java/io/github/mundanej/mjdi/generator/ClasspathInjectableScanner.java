@@ -172,9 +172,8 @@ public final class ClasspathInjectableScanner {
         String typeName = canonicalName(type);
         List<GeneratedModuleRequest.Dependency> dependencies = new ArrayList<>();
         for (Parameter parameter : constructor.getParameters()) {
-            Class<?> parameterType = parameter.getType();
-            String dependencyTypeName = canonicalName(parameterType);
             Named named = parameter.getAnnotation(Named.class);
+            String dependencyTypeName = dependencyTypeName(parameter.getType(), named);
             dependencies.add(named == null
                     ? GeneratedModuleRequest.Dependency.of(dependencyTypeName)
                     : GeneratedModuleRequest.Dependency.named(dependencyTypeName, named.value()));
@@ -200,5 +199,23 @@ public final class ClasspathInjectableScanner {
             throw new IllegalStateException(type.getName() + " cannot be represented as a supported class literal");
         }
         return type.getCanonicalName();
+    }
+
+    private static String dependencyTypeName(Class<?> type, Named named) {
+        if (type.isPrimitive() && named != null && isScalarPrimitive(type)) {
+            return type.getName();
+        }
+        return canonicalName(type);
+    }
+
+    private static boolean isScalarPrimitive(Class<?> type) {
+        return type == boolean.class
+                || type == byte.class
+                || type == char.class
+                || type == double.class
+                || type == float.class
+                || type == int.class
+                || type == long.class
+                || type == short.class;
     }
 }

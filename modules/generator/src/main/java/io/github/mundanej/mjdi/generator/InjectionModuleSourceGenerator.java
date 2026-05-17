@@ -70,13 +70,34 @@ public final class InjectionModuleSourceGenerator {
     private static String dependencies(List<GeneratedModuleRequest.Dependency> dependencies) {
         List<String> expressions = new ArrayList<>();
         for (GeneratedModuleRequest.Dependency dependency : dependencies) {
+            String name = dependency.name().orElse(null);
+            String namedScalarMethod = namedScalarMethod(dependency.typeName());
+            if (name != null && namedScalarMethod != null) {
+                expressions.add("context." + namedScalarMethod + "(" + quoted(name) + ")");
+                continue;
+            }
             String key = classLiteral(dependency.typeName());
-            if (dependency.name().isPresent()) {
-                key = "Key.named(" + key + ", " + quoted(dependency.name().orElseThrow()) + ")";
+            if (name != null) {
+                key = "Key.named(" + key + ", " + quoted(name) + ")";
             }
             expressions.add("context.get(" + key + ")");
         }
         return String.join(", ", expressions);
+    }
+
+    private static String namedScalarMethod(String typeName) {
+        return switch (typeName) {
+            case "java.lang.String" -> "getNamedString";
+            case "boolean", "java.lang.Boolean" -> "getNamedBool";
+            case "int", "java.lang.Integer" -> "getNamedInt";
+            case "long", "java.lang.Long" -> "getNamedLong";
+            case "double", "java.lang.Double" -> "getNamedDouble";
+            case "float", "java.lang.Float" -> "getNamedFloat";
+            case "short", "java.lang.Short" -> "getNamedShort";
+            case "byte", "java.lang.Byte" -> "getNamedByte";
+            case "char", "java.lang.Character" -> "getNamedChar";
+            default -> null;
+        };
     }
 
     private static String classLiteral(String typeName) {

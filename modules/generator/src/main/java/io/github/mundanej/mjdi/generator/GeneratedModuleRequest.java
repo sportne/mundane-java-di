@@ -70,6 +70,8 @@ public record GeneratedModuleRequest(
             "volatile",
             "while");
     private static final Set<String> RESTRICTED_TYPE_IDENTIFIERS = Set.of("record", "var", "yield");
+    private static final Set<String> SCALAR_PRIMITIVE_TYPES =
+            Set.of("boolean", "byte", "char", "double", "float", "int", "long", "short");
 
     /**
      * Creates a generation request.
@@ -137,24 +139,25 @@ public record GeneratedModuleRequest(
     /**
      * Describes one constructor argument that generated code should fetch from the context.
      *
-     * @param typeName the fully qualified dependency type name
+     * @param typeName the fully qualified dependency type name, or a named scalar primitive type
      * @param name the optional dependency binding name
      */
     public record Dependency(String typeName, Optional<String> name) {
         /**
          * Creates a dependency request.
          *
-         * @param typeName the fully qualified dependency type name
+         * @param typeName the fully qualified dependency type name, or a named scalar primitive type
          * @param name the optional dependency binding name
          */
         public Dependency {
-            requireQualifiedTypeName(typeName, "typeName");
+            Objects.requireNonNull(typeName, "typeName");
             name = Objects.requireNonNull(name, "name");
             name.ifPresent(value -> {
                 if (value.isBlank()) {
                     throw new IllegalArgumentException("dependency name must not be blank");
                 }
             });
+            requireDependencyTypeName(typeName, name, "typeName");
         }
 
         /**
@@ -170,7 +173,7 @@ public record GeneratedModuleRequest(
         /**
          * Creates a named dependency request.
          *
-         * @param typeName the fully qualified dependency type name
+         * @param typeName the fully qualified dependency type name, or a scalar primitive type
          * @param name the binding name to request
          * @return a dependency request
          */
@@ -202,6 +205,16 @@ public record GeneratedModuleRequest(
         if (!isValidSimpleJavaName(value) || RESTRICTED_TYPE_IDENTIFIERS.contains(value)) {
             throw new IllegalArgumentException(label + " must be a simple Java name: " + value);
         }
+    }
+
+    private static void requireDependencyTypeName(String value, Optional<String> name, String label) {
+        if (SCALAR_PRIMITIVE_TYPES.contains(value)) {
+            if (name.isPresent()) {
+                return;
+            }
+            throw new IllegalArgumentException(label + " primitive dependencies must be named: " + value);
+        }
+        requireQualifiedTypeName(value, label);
     }
 
     private static boolean isValidSimpleJavaName(String value) {

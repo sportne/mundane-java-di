@@ -22,7 +22,8 @@ class GeneratedModuleSourceArchitectureTest {
                                 namedBinding(
                                         "com.example.Port",
                                         "primary",
-                                        named("com.example.Settings", "prod")))))
+                                        named("com.example.Settings", "prod")),
+                                binding("com.example.ScalarConsumer", named("java.lang.String", "text")))))
                 .sourceText();
 
         assertFalse(source.contains("io.github.mundanej.mjdi.generator"));
@@ -60,5 +61,6 @@ class GeneratedModuleSourceArchitectureTest {
         assertTrue(source.contains("binder.bindSingleton("));
         assertTrue(source.contains("context.get(com.example.Repository.class)"));
         assertTrue(source.contains("context.get(Key.named(com.example.Settings.class, \"prod\"))"));
+        assertTrue(source.contains("context.getNamedString(\"text\")"));
     }
 }

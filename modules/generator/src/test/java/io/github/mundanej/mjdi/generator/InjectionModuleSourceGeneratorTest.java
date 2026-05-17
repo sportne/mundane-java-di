@@ -47,12 +47,43 @@ class InjectionModuleSourceGeneratorTest {
     }
 
     @Test
+    void emitsNamedScalarDependenciesWithAppContextHelpers() {
+        GeneratedModuleRequest request = new GeneratedModuleRequest(
+                "com.example.generated",
+                "ScalarModule",
+                List.of(binding(
+                        "com.example.ScalarConsumer",
+                        named("java.lang.String", "text"),
+                        named("boolean", "enabled"),
+                        named("int", "count"),
+                        named("long", "distance"),
+                        named("double", "ratio"),
+                        named("float", "scale"),
+                        named("short", "small"),
+                        named("byte", "tiny"),
+                        named("char", "letter"))));
+
+        String source = new InjectionModuleSourceGenerator().generate(request).sourceText();
+
+        assertTrue(source.contains("context.getNamedString(\"text\")"));
+        assertTrue(source.contains("context.getNamedBool(\"enabled\")"));
+        assertTrue(source.contains("context.getNamedInt(\"count\")"));
+        assertTrue(source.contains("context.getNamedLong(\"distance\")"));
+        assertTrue(source.contains("context.getNamedDouble(\"ratio\")"));
+        assertTrue(source.contains("context.getNamedFloat(\"scale\")"));
+        assertTrue(source.contains("context.getNamedShort(\"small\")"));
+        assertTrue(source.contains("context.getNamedByte(\"tiny\")"));
+        assertTrue(source.contains("context.getNamedChar(\"letter\")"));
+    }
+
+    @Test
     void rejectsInvalidJavaNames() {
         assertThrows(IllegalArgumentException.class, () -> new GeneratedModuleRequest(
                 "not a package", "GeneratedAppModule", List.of()));
         assertThrows(IllegalArgumentException.class, () -> new GeneratedModuleRequest(
                 "com.example.generated", "com.example.GeneratedAppModule", List.of()));
         assertThrows(IllegalArgumentException.class, () -> of("not a type"));
+        assertThrows(IllegalArgumentException.class, () -> of("int"));
     }
 
     @Test

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.mundanej.mjdi.generator.fixtures.valid.NamedConsumer;
 import io.github.mundanej.mjdi.generator.fixtures.valid.NamedRepository;
 import io.github.mundanej.mjdi.generator.fixtures.valid.Repository;
+import io.github.mundanej.mjdi.generator.fixtures.valid.ScalarConsumer;
 import io.github.mundanej.mjdi.generator.fixtures.valid.Service;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -39,6 +40,7 @@ class ClasspathInjectableScannerTest {
                         NamedConsumer.class.getCanonicalName(),
                         NamedRepository.class.getCanonicalName(),
                         Repository.class.getCanonicalName(),
+                        ScalarConsumer.class.getCanonicalName(),
                         Service.class.getCanonicalName()),
                 typeNames);
         assertFalse(typeNames.contains("io.github.mundanej.mjdi.generator.fixtures.valid.IgnoredNoInject"));
@@ -46,6 +48,11 @@ class ClasspathInjectableScannerTest {
                 .anyMatch(binding -> binding.typeName().equals(NamedConsumer.class.getCanonicalName())
                         && binding.name().orElseThrow().equals("consumer")
                         && binding.dependencies().get(0).name().orElseThrow().equals("main")));
+        assertTrue(request.bindings().stream()
+                .anyMatch(binding -> binding.typeName().equals(ScalarConsumer.class.getCanonicalName())
+                        && binding.dependencies().stream()
+                                .anyMatch(dependency -> dependency.typeName().equals("int")
+                                        && dependency.name().orElseThrow().equals("count"))));
     }
 
     @Test
