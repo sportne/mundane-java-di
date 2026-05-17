@@ -9,8 +9,8 @@ import java.util.List;
 /**
  * Emits Java source for an {@code AppPluginModule}.
  *
- * <p>The generated source uses direct constructor calls. It does not use reflection or classpath
- * scanning, which keeps the output friendly to GraalVM Native Image.
+ * <p>The generated source uses direct constructor calls and singleton bindings. It does not use
+ * reflection or classpath scanning, which keeps the output friendly to GraalVM Native Image.
  */
 public final class InjectionModuleSourceGenerator {
     /**
@@ -63,7 +63,7 @@ public final class InjectionModuleSourceGenerator {
         if (binding.name().isPresent()) {
             target = "Key.named(" + target + ", " + quoted(binding.name().orElseThrow()) + ")";
         }
-        return "binder.bind(" + target + ", context -> new " + binding.typeName() + "("
+        return "binder.bindSingleton(" + target + ", context -> new " + binding.typeName() + "("
                 + dependencies(binding.dependencies()) + "));";
     }
 

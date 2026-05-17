@@ -14,7 +14,7 @@ The design is intentionally plain:
 ## Project Layout
 
 - `modules/core` contains the runtime API.
-- `modules/generator` contains build-time source generation support.
+- `modules/generator` contains JDK-only build-time source generation support.
 - `examples/basic` contains a tiny example module and usage test.
 - `docs/architecture/architecture-rule-catalog.md` documents the rules enforced by ArchUnit.
 - `build-logic` contains small Gradle convention plugins shared by the modules.
@@ -56,6 +56,33 @@ binder.bind(Service.class, context -> new Service(context.get(Repository.class))
 
 `@Inject` and `@Named` are metadata for generator and architecture tests. The runtime core does not
 scan annotations or use reflection to create objects.
+
+Generated modules use singleton bindings by default:
+
+```java
+binder.bindSingleton(Service.class, context -> new Service(context.get(Repository.class)));
+```
+
+## Generator CLI
+
+The generator scans the current Java process classpath. Put application classes on the Java
+classpath, then run:
+
+```bash
+java -cp "app-classes:mundane-java-di.jar:mundane-java-di-generator.jar" \
+  io.github.mundanej.mjdi.generator.GeneratorCli \
+  --output-dir build/generated/sources/mjdi \
+  --module-package com.example.generated \
+  --module-class GeneratedAppModule \
+  --package-root com.example
+```
+
+Use `--dry-run` to print generated source without writing a file. Use `--overwrite` when replacing
+an existing generated module with different content.
+
+Generated source is intended to be checked like normal project source. It includes public Javadocs,
+avoids unused imports, compiles with warnings as errors, and stays free of runtime reflection,
+classpath scanning, service loading, and serialization.
 
 ## Architecture Rules
 

@@ -3,6 +3,7 @@ package io.github.mundanej.mjdi.generator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Describes the module source that should be generated.
@@ -13,6 +14,63 @@ import java.util.Optional;
  */
 public record GeneratedModuleRequest(
         String modulePackage, String moduleClassName, List<ConstructorBinding> bindings) {
+    private static final Set<String> JAVA_KEYWORDS_AND_LITERALS = Set.of(
+            "_",
+            "abstract",
+            "assert",
+            "boolean",
+            "break",
+            "byte",
+            "case",
+            "catch",
+            "char",
+            "class",
+            "const",
+            "continue",
+            "default",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "extends",
+            "false",
+            "final",
+            "finally",
+            "float",
+            "for",
+            "goto",
+            "if",
+            "implements",
+            "import",
+            "instanceof",
+            "int",
+            "interface",
+            "long",
+            "native",
+            "new",
+            "null",
+            "package",
+            "private",
+            "protected",
+            "public",
+            "return",
+            "short",
+            "static",
+            "strictfp",
+            "super",
+            "switch",
+            "synchronized",
+            "this",
+            "throw",
+            "throws",
+            "transient",
+            "true",
+            "try",
+            "void",
+            "volatile",
+            "while");
+    private static final Set<String> RESTRICTED_TYPE_IDENTIFIERS = Set.of("record", "var", "yield");
+
     /**
      * Creates a generation request.
      *
@@ -21,8 +79,8 @@ public record GeneratedModuleRequest(
      * @param bindings the bindings that should be emitted into the module
      */
     public GeneratedModuleRequest {
-        requireJavaName(modulePackage, "modulePackage");
-        requireJavaName(moduleClassName, "moduleClassName");
+        requireQualifiedJavaName(modulePackage, "modulePackage");
+        requireSimpleTypeName(moduleClassName, "moduleClassName");
         bindings = List.copyOf(Objects.requireNonNull(bindings, "bindings"));
     }
 
@@ -42,7 +100,7 @@ public record GeneratedModuleRequest(
          * @param dependencies the constructor arguments to request from the context
          */
         public ConstructorBinding {
-            requireJavaName(typeName, "typeName");
+            requireQualifiedTypeName(typeName, "typeName");
             name = Objects.requireNonNull(name, "name");
             name.ifPresent(value -> {
                 if (value.isBlank()) {
@@ -53,18 +111,18 @@ public record GeneratedModuleRequest(
         }
 
         /**
-         * Creates an unnamed transient binding.
+         * Creates an unnamed generated binding.
          *
          * @param typeName the fully qualified class name to construct
          * @param dependencies the constructor arguments to request from the context
          * @return a binding request
          */
-        public static ConstructorBinding transientBinding(String typeName, Dependency... dependencies) {
+        public static ConstructorBinding binding(String typeName, Dependency... dependencies) {
             return new ConstructorBinding(typeName, Optional.empty(), List.of(dependencies));
         }
 
         /**
-         * Creates a named transient binding.
+         * Creates a named generated binding.
          *
          * @param typeName the fully qualified class name to construct
          * @param name the binding name
@@ -90,7 +148,7 @@ public record GeneratedModuleRequest(
          * @param name the optional dependency binding name
          */
         public Dependency {
-            requireJavaName(typeName, "typeName");
+            requireQualifiedTypeName(typeName, "typeName");
             name = Objects.requireNonNull(name, "name");
             name.ifPresent(value -> {
                 if (value.isBlank()) {
@@ -121,10 +179,43 @@ public record GeneratedModuleRequest(
         }
     }
 
-    private static void requireJavaName(String value, String label) {
+    private static void requireQualifiedJavaName(String value, String label) {
         Objects.requireNonNull(value, label);
-        if (!value.matches("[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*")) {
-            throw new IllegalArgumentException(label + " must be a Java name: " + value);
+        String[] parts = value.split("\\.", -1);
+        for (String part : parts) {
+            if (!isValidSimpleJavaName(part)) {
+                throw new IllegalArgumentException(label + " must be a Java name: " + value);
+            }
         }
+    }
+
+    private static void requireQualifiedTypeName(String value, String label) {
+        requireQualifiedJavaName(value, label);
+        String simpleName = value.substring(value.lastIndexOf('.') + 1);
+        if (RESTRICTED_TYPE_IDENTIFIERS.contains(simpleName)) {
+            throw new IllegalArgumentException(label + " must be a Java type name: " + value);
+        }
+    }
+
+    private static void requireSimpleTypeName(String value, String label) {
+        Objects.requireNonNull(value, label);
+        if (!isValidSimpleJavaName(value) || RESTRICTED_TYPE_IDENTIFIERS.contains(value)) {
+            throw new IllegalArgumentException(label + " must be a simple Java name: " + value);
+        }
+    }
+
+    private static boolean isValidSimpleJavaName(String value) {
+        if (value.isEmpty() || JAVA_KEYWORDS_AND_LITERALS.contains(value)) {
+            return false;
+        }
+        if (!Character.isJavaIdentifierStart(value.charAt(0))) {
+            return false;
+        }
+        for (int index = 1; index < value.length(); index++) {
+            if (!Character.isJavaIdentifierPart(value.charAt(index))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

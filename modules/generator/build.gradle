@@ -7,7 +7,6 @@ description = 'Build-time source generator support for mundane Java DI modules.'
 
 dependencies {
     api project(':modules:core')
-    implementation libs.classgraph
 }
 
 base {

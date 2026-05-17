@@ -1,7 +1,7 @@
 package io.github.mundanej.mjdi.generator;
 
 import static io.github.mundanej.mjdi.generator.GeneratedModuleRequest.ConstructorBinding.namedBinding;
-import static io.github.mundanej.mjdi.generator.GeneratedModuleRequest.ConstructorBinding.transientBinding;
+import static io.github.mundanej.mjdi.generator.GeneratedModuleRequest.ConstructorBinding.binding;
 import static io.github.mundanej.mjdi.generator.GeneratedModuleRequest.Dependency.named;
 import static io.github.mundanej.mjdi.generator.GeneratedModuleRequest.Dependency.of;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -18,7 +18,7 @@ class GeneratedModuleSourceArchitectureTest {
                         "com.example.generated",
                         "GeneratedAppModule",
                         List.of(
-                                transientBinding("com.example.OrderService", of("com.example.Repository")),
+                                binding("com.example.OrderService", of("com.example.Repository")),
                                 namedBinding(
                                         "com.example.Port",
                                         "primary",
@@ -57,6 +57,7 @@ class GeneratedModuleSourceArchitectureTest {
         assertFalse(source.contains("com.tngtech.archunit"));
 
         assertTrue(source.contains("new com.example.OrderService("));
+        assertTrue(source.contains("binder.bindSingleton("));
         assertTrue(source.contains("context.get(com.example.Repository.class)"));
         assertTrue(source.contains("context.get(Key.named(com.example.Settings.class, \"prod\"))"));
     }

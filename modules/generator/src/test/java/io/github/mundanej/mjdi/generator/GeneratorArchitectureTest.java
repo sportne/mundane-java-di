@@ -27,6 +27,13 @@ final class GeneratorArchitectureTest {
                             "com.tngtech.archunit..");
 
     @ArchTest
+    static final ArchRule project_specific_generator_has_no_external_runtime_dependencies =
+            noClasses()
+                    .should()
+                    .dependOnClassesThat()
+                    .resideOutsideOfPackages("java..", "io.github.mundanej.mjdi..");
+
+    @ArchTest
     static final ArchRule baseline_generator_avoids_serialization_and_internal_jdk_apis =
             noClasses()
                     .should()
@@ -57,6 +64,8 @@ final class GeneratorArchitectureTest {
     @ArchTest
     static final ArchRule baseline_generator_does_not_terminate_spawn_processes_or_force_gc =
             noClasses()
+                    .that()
+                    .doNotHaveFullyQualifiedName("io.github.mundanej.mjdi.generator.GeneratorCli")
                     .should()
                     .callMethod(System.class, "exit", int.class)
                     .orShould()
