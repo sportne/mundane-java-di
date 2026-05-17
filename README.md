@@ -14,9 +14,10 @@ The design is intentionally plain and explicit:
 
 ## Status
 
-Version `0.1.0` is the first releasable version. The core runtime has no runtime dependencies, and
-the generator depends only on the core module plus the JDK. Maven Central publishing is not set up;
-release artifacts are built locally from this repository.
+Version `0.1.0` is the first releasable version. Current development targets `0.2.0-SNAPSHOT`. The
+core runtime has no runtime dependencies, and the generator depends only on the core module plus the
+JDK. Maven Central publishing is not set up; release artifacts are built locally from this
+repository.
 
 Artifact coordinates:
 
@@ -66,7 +67,8 @@ Service service = context.get(Service.class);
 ```
 
 Normal `install(...)` calls are strict: binding the same key twice throws an exception. Use
-`installOverride(...)` only when a later module should intentionally replace an earlier binding.
+`installOverride(...)` only when a later module should intentionally replace an earlier binding. A
+failed install is rolled back, so partially configured module bindings are not kept.
 
 ```java
 import io.github.mundanej.mjdi.Binder;
@@ -84,6 +86,9 @@ String mode = context.getNamedString("mode");
 int port = context.getNamedInt("port");
 boolean enabled = context.getNamedBool("enabled");
 ```
+
+Bindings are expected to return non-null values. Use `Optional<T>` or a domain value when a
+dependency needs to represent absence.
 
 ## Generated Modules
 

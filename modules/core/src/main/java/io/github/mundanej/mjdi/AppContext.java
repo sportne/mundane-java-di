@@ -1,20 +1,40 @@
 package io.github.mundanej.mjdi;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 /**
  * Immutable object lookup table created from a {@link Binder}.
  *
  * <p>Application code asks the context for a class or key. The context then calls the provider that
- * was registered for that key.
+ * was registered for that key. A context is immutable and safe to share between threads after it is
+ * built. Providers still need to be safe for the way the application uses them.
  */
 public final class AppContext {
     private final Map<Key<?>, ContextProvider<?>> providers;
+    private final Map<Class<?>, ContextProvider<?>> unnamedProviders;
+    private final Map<Class<?>, Key<?>> unnamedKeys;
+    private final ThreadLocal<Deque<Key<?>>> resolving = ThreadLocal.withInitial(ArrayDeque::new);
 
     AppContext(Map<Key<?>, ContextProvider<?>> providers) {
-        this.providers = Map.copyOf(new LinkedHashMap<>(providers));
+        Map<Key<?>, ContextProvider<?>> providerCopy = Map.copyOf(new LinkedHashMap<>(providers));
+        Map<Class<?>, ContextProvider<?>> unnamedProviderCopy = new LinkedHashMap<>();
+        Map<Class<?>, Key<?>> unnamedKeyCopy = new LinkedHashMap<>();
+        for (Map.Entry<Key<?>, ContextProvider<?>> entry : providerCopy.entrySet()) {
+            if (entry.getKey().name().isEmpty()) {
+                unnamedProviderCopy.put(entry.getKey().type(), entry.getValue());
+                unnamedKeyCopy.put(entry.getKey().type(), entry.getKey());
+            }
+        }
+        this.providers = providerCopy;
+        this.unnamedProviders = Map.copyOf(unnamedProviderCopy);
+        this.unnamedKeys = Map.copyOf(unnamedKeyCopy);
     }
 
     /**
@@ -25,7 +45,14 @@ public final class AppContext {
      * @return the object provided for {@code type}
      */
     public <T> T get(Class<T> type) {
-        return get(Key.of(type));
+        Objects.requireNonNull(type, "type");
+        ContextProvider<?> provider = unnamedProviders.get(type);
+        if (provider == null) {
+            throw new NoSuchElementException("no binding for " + type.getName());
+        }
+        @SuppressWarnings("unchecked")
+        Key<T> key = (Key<T>) unnamedKeys.get(type);
+        return resolve(key, provider);
     }
 
     /**
@@ -36,12 +63,48 @@ public final class AppContext {
      * @return the object provided for {@code key}
      */
     public <T> T get(Key<T> key) {
+        Objects.requireNonNull(key, "key");
         ContextProvider<?> provider = providers.get(key);
         if (provider == null) {
             throw new NoSuchElementException("no binding for " + key);
         }
-        Object value = provider.get(this);
-        return key.type().cast(value);
+        return resolve(key, provider);
+    }
+
+    private <T> T resolve(Key<T> key, ContextProvider<?> provider) {
+        Deque<Key<?>> stack = resolving.get();
+        if (stack.contains(key)) {
+            throw new IllegalStateException("dependency cycle detected: " + cyclePath(stack, key));
+        }
+        stack.addLast(key);
+        try {
+            Object value = provider.get(this);
+            if (value == null) {
+                throw new IllegalStateException(
+                        "provider returned null for " + key + "; bind Optional or a domain value for nullable data");
+            }
+            return key.type().cast(value);
+        } finally {
+            stack.removeLast();
+            if (stack.isEmpty()) {
+                resolving.remove();
+            }
+        }
+    }
+
+    private static String cyclePath(Deque<Key<?>> stack, Key<?> repeatedKey) {
+        List<Key<?>> path = new ArrayList<>();
+        boolean inCycle = false;
+        for (Key<?> key : stack) {
+            if (key.equals(repeatedKey)) {
+                inCycle = true;
+            }
+            if (inCycle) {
+                path.add(key);
+            }
+        }
+        path.add(repeatedKey);
+        return String.join(" -> ", path.stream().map(Key::toString).toList());
     }
 
     /**

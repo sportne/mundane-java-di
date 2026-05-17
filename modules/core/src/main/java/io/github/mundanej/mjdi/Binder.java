@@ -9,7 +9,8 @@ import java.util.Set;
  * Collects dependency bindings before an {@link AppContext} is created.
  *
  * <p>A binding connects a {@link Key} to a provider or to an already-created instance. Once all
- * modules are installed, the binder can build an immutable context.
+ * modules are installed, the binder can build an immutable context. A binder is mutable and is not
+ * thread-safe. Configure it on one thread, then share the built {@link AppContext}.
  */
 public final class Binder {
     private final Map<Key<?>, ContextProvider<?>> providers = new LinkedHashMap<>();
@@ -99,7 +100,7 @@ public final class Binder {
      * Binds a class to an object that already exists.
      *
      * @param type the class to bind
-     * @param instance the object to return for this binding
+     * @param instance the non-null object to return for this binding
      * @param <T> the bound type
      * @return this binder for chaining
      */
@@ -111,11 +112,12 @@ public final class Binder {
      * Binds a key to an object that already exists.
      *
      * @param key the key to bind
-     * @param instance the object to return for this binding
+     * @param instance the non-null object to return for this binding
      * @param <T> the bound type
      * @return this binder for chaining
      */
     public <T> Binder bindInstance(Key<T> key, T instance) {
+        Objects.requireNonNull(instance, "instance");
         put(key, ignored -> instance);
         return this;
     }
@@ -140,10 +142,15 @@ public final class Binder {
 
     private void configure(AppPluginModule module, boolean override) {
         Objects.requireNonNull(module, "module");
+        Map<Key<?>, ContextProvider<?>> previousProviders = new LinkedHashMap<>(providers);
         int previousOverrideDepth = overrideDepth;
         overrideDepth = override ? overrideDepth + 1 : 0;
         try {
             module.configure(this);
+        } catch (RuntimeException | Error exception) {
+            providers.clear();
+            providers.putAll(previousProviders);
+            throw exception;
         } finally {
             overrideDepth = previousOverrideDepth;
         }

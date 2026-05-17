@@ -5,8 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class AppContextTest {
@@ -37,6 +43,15 @@ class AppContextTest {
 
         assertEquals("value-42", context.get(String.class));
         assertSame(context, receivedContext[0]);
+    }
+
+    @Test
+    void nonCyclicNestedDependencyLookupWorks() {
+        AppContext context = BootstrapAppContext.create(List.of(binder -> binder
+                .bindInstance(Repository.class, new Repository())
+                .bind(Service.class, appContext -> new Service(appContext.get(Repository.class)))));
+
+        assertEquals("service-repository", context.get(Service.class).value());
     }
 
     @Test
@@ -78,6 +93,39 @@ class AppContextTest {
     }
 
     @Test
+    void providerReturningNullThrowsWithKeyMessage() {
+        AppContext context = BootstrapAppContext.create(List.of(binder -> binder.bind(String.class, ignored -> null)));
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> context.get(String.class));
+
+        assertTrue(exception.getMessage().contains(String.class.getName()));
+        assertTrue(exception.getMessage().contains("provider returned null"));
+    }
+
+    @Test
+    void singletonProviderReturningNullThrowsWithKeyMessage() {
+        AppContext context =
+                BootstrapAppContext.create(List.of(binder -> binder.bindSingleton(String.class, ignored -> null)));
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> context.get(String.class));
+
+        assertTrue(exception.getMessage().contains(String.class.getName()));
+        assertTrue(exception.getMessage().contains("provider returned null"));
+    }
+
+    @Test
+    void namedScalarLookupFailsClearlyWhenProviderReturnsNull() {
+        Key<Integer> key = Key.named(Integer.class, "missing-number");
+        AppContext context = BootstrapAppContext.create(List.of(binder -> binder.bind(key, ignored -> null)));
+
+        IllegalStateException exception =
+                assertThrows(IllegalStateException.class, () -> context.getNamedInt("missing-number"));
+
+        assertTrue(exception.getMessage().contains(key.toString()));
+        assertTrue(exception.getMessage().contains("provider returned null"));
+    }
+
+    @Test
     void missingBindingMessageIncludesKey() {
         AppContext context = BootstrapAppContext.create(List.of());
         Key<String> key = Key.named(String.class, "missing");
@@ -105,8 +153,86 @@ class AppContextTest {
         assertThrows(ClassCastException.class, () -> context.get(String.class));
     }
 
+    @Test
+    void directDependencyCycleThrowsWithCyclePath() {
+        AppContext context = BootstrapAppContext.create(List.of(
+                binder -> binder.bind(DirectCycle.class, appContext -> appContext.get(DirectCycle.class))));
+
+        IllegalStateException exception =
+                assertThrows(IllegalStateException.class, () -> context.get(DirectCycle.class));
+
+        assertTrue(exception.getMessage().contains("dependency cycle detected"));
+        assertTrue(exception.getMessage().contains(DirectCycle.class.getName()
+                + " -> "
+                + DirectCycle.class.getName()));
+    }
+
+    @Test
+    void indirectDependencyCycleThrowsWithCyclePath() {
+        AppContext context = BootstrapAppContext.create(List.of(binder -> binder
+                .bind(FirstCycle.class, appContext -> new FirstCycle(appContext.get(SecondCycle.class)))
+                .bind(SecondCycle.class, appContext -> new SecondCycle(appContext.get(FirstCycle.class)))));
+
+        IllegalStateException exception =
+                assertThrows(IllegalStateException.class, () -> context.get(FirstCycle.class));
+
+        assertTrue(exception.getMessage().contains(FirstCycle.class.getName()
+                + " -> "
+                + SecondCycle.class.getName()
+                + " -> "
+                + FirstCycle.class.getName()));
+    }
+
+    @Test
+    void concurrentReadsFromBuiltContextAreSafe() throws Exception {
+        int workers = 16;
+        Repository repository = new Repository();
+        AppContext context = BootstrapAppContext.create(List.of(binder -> binder.bindInstance(Repository.class, repository)));
+        CountDownLatch ready = new CountDownLatch(workers);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(workers);
+
+        try {
+            List<Future<Repository>> futures = new ArrayList<>();
+            for (int index = 0; index < workers; index++) {
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    assertTrue(start.await(5, TimeUnit.SECONDS));
+                    return context.get(Repository.class);
+                }));
+            }
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+
+            for (Future<Repository> future : futures) {
+                assertSame(repository, future.get(5, TimeUnit.SECONDS));
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static ContextProvider<? extends String> wrongStringProvider() {
         return (ContextProvider<? extends String>) (ContextProvider<?>) ignored -> 42;
     }
+
+    private record Repository() {
+        String value() {
+            return "repository";
+        }
+    }
+
+    private record Service(Repository repository) {
+        String value() {
+            return "service-" + repository.value();
+        }
+    }
+
+    private record DirectCycle() {}
+
+    private record FirstCycle(SecondCycle second) {}
+
+    private record SecondCycle(FirstCycle first) {}
 }

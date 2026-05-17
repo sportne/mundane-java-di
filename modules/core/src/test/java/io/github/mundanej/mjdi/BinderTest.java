@@ -48,6 +48,8 @@ class BinderTest {
         assertThrows(NullPointerException.class, () -> binder.bindSingleton(Widget.class, null));
         assertThrows(NullPointerException.class, () -> binder.bindInstance((Class<Widget>) null, new Widget("value")));
         assertThrows(NullPointerException.class, () -> binder.bindInstance((Key<Widget>) null, new Widget("value")));
+        assertThrows(NullPointerException.class, () -> binder.bindInstance(Widget.class, null));
+        assertThrows(NullPointerException.class, () -> binder.bindInstance(Key.of(Widget.class), null));
     }
 
     @Test
@@ -173,7 +175,7 @@ class BinderTest {
     }
 
     @Test
-    void normalStrictBindingReturnsWhenOverrideInstallThrows() {
+    void failedOverrideInstallRestoresPreviousBindings() {
         Binder binder = new Binder().install(b -> b.bindInstance(Widget.class, new Widget("first")));
         RuntimeException failure = new RuntimeException("failed");
 
@@ -183,7 +185,23 @@ class BinderTest {
         })));
         assertThrows(IllegalStateException.class, () -> binder.install(
                 b -> b.bindInstance(Widget.class, new Widget("third"))));
-        assertEquals("second", binder.build().get(Widget.class).name());
+        assertEquals("first", binder.build().get(Widget.class).name());
+    }
+
+    @Test
+    void failedNormalInstallRestoresPreviousBindings() {
+        Binder binder = new Binder().install(b -> b.bindInstance(Widget.class, new Widget("first")));
+        RuntimeException failure = new RuntimeException("failed");
+        Key<Widget> secondKey = Key.named(Widget.class, "second");
+
+        assertSame(failure, assertThrows(RuntimeException.class, () -> binder.install(b -> {
+            b.bindInstance(secondKey, new Widget("second"));
+            throw failure;
+        })));
+
+        AppContext context = binder.build();
+        assertEquals("first", context.get(Widget.class).name());
+        assertThrows(NoSuchElementException.class, () -> context.get(secondKey));
     }
 
     @Test
@@ -204,7 +222,30 @@ class BinderTest {
             override.bindInstance(Widget.class, new Widget("second"));
             override.install(normal -> normal.bindInstance(Widget.class, new Widget("third")));
         }));
-        assertEquals("second", binder.build().get(Widget.class).name());
+        assertEquals("first", binder.build().get(Widget.class).name());
+    }
+
+    @Test
+    void caughtNestedInstallFailureRollsBackOnlyNestedInstall() {
+        Key<Widget> nestedKey = Key.named(Widget.class, "nested");
+        Key<Widget> outerKey = Key.named(Widget.class, "outer");
+        Binder binder = new Binder().install(b -> {
+            b.bindInstance(Widget.class, new Widget("first"));
+            try {
+                b.install(nested -> {
+                    nested.bindInstance(nestedKey, new Widget("nested"));
+                    nested.bindInstance(Widget.class, new Widget("duplicate"));
+                });
+            } catch (IllegalStateException ignored) {
+                b.bindInstance(outerKey, new Widget("outer"));
+            }
+        });
+
+        AppContext context = binder.build();
+
+        assertEquals("first", context.get(Widget.class).name());
+        assertEquals("outer", context.get(outerKey).name());
+        assertThrows(NoSuchElementException.class, () -> context.get(nestedKey));
     }
 
     @Test

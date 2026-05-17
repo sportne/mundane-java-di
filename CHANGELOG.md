@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Hardened core runtime behavior for the next minor release.
+- Made binder installs transactional so failed module configuration no longer leaves partial
+  bindings behind.
+- Rejected null instance bindings and null provider results from `AppContext` lookups.
+- Added dependency-cycle diagnostics for recursive provider lookups.
+- Clarified thread-safety and service-loader trust-boundary documentation.
+- Improved unnamed class lookup and key hash-code behavior without changing the public API surface.
+
 ## 0.1.0 - 2026-05-17
 
 Initial releasable version of `mundane-java-di`.

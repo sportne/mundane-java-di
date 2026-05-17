@@ -40,6 +40,9 @@ public final class BootstrapAppContext {
     /**
      * Loads modules from {@link ModuleProvider} service entries.
      *
+     * <p>This method executes providers visible through the application classpath's service-loader
+     * configuration. Use it only with dependencies that the application trusts.
+     *
      * @return all modules supplied by providers visible to the service loader
      */
     public static List<AppPluginModule> serviceLoadedModules() {
@@ -52,6 +55,9 @@ public final class BootstrapAppContext {
 
     /**
      * Creates an application context from service-loaded modules.
+     *
+     * <p>This method executes service-loaded module providers. Use it only with dependencies that
+     * the application trusts.
      *
      * @return a ready-to-use application context
      */

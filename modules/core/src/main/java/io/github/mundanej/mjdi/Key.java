@@ -85,7 +85,9 @@ public final class Key<T> {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(type, name);
+        int result = type.hashCode();
+        result = 31 * result + (name == null ? 0 : name.hashCode());
+        return result;
     }
 
     /**
