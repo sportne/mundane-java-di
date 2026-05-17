@@ -46,10 +46,11 @@ tasks.register('jacocoTestCoverageVerification') {
 tasks.register('printPublishedArtifacts') {
     group = 'help'
     description = 'Prints planned artifact coordinates.'
+    def releaseVersion = project.version
     doLast {
-        println '''
-:modules:core       -> io.github.mundanej:mundane-java-di
-:modules:generator  -> io.github.mundanej:mundane-java-di-generator
-'''.stripIndent()
+        println """
+:modules:core       -> io.github.mundanej:mundane-java-di:${releaseVersion}
+:modules:generator  -> io.github.mundanej:mundane-java-di-generator:${releaseVersion}
+""".stripIndent()
     }
 }

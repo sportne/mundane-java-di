@@ -1,5 +1,6 @@
 def requiredFilePaths = [
     'README.md',
+    'CHANGELOG.md',
     'AGENTS.md',
     'docs/architecture/architecture-rule-catalog.md',
 ]

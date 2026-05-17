@@ -1,17 +1,35 @@
 # mundane-java-di
 
 `mundane-java-di` is a small Java dependency injection library for projects that care about
-GraalVM Native Image compatibility.
+GraalVM Native Image compatibility. It provides a Guice-like binding experience without runtime
+reflection, runtime classpath scanning, dynamic proxies, or external runtime dependencies.
 
-The design is intentionally plain:
+The design is intentionally plain and explicit:
 
 - application code registers providers in modules;
 - the runtime looks up objects from an `AppContext`;
-- generated modules call constructors directly;
-- the runtime avoids reflection, classpath scanning, dynamic proxies, and other features that make
-  native-image builds harder to reason about.
+- optional generated modules call constructors directly;
+- generated bindings are singleton by default;
+- architecture tests keep native-image-hostile APIs out of runtime code.
 
-## Project Layout
+## Status
+
+Version `0.1.0` is the first releasable version. The core runtime has no runtime dependencies, and
+the generator depends only on the core module plus the JDK. Maven Central publishing is not set up;
+release artifacts are built locally from this repository.
+
+Artifact coordinates:
+
+- `io.github.mundanej:mundane-java-di:0.1.0`
+- `io.github.mundanej:mundane-java-di-generator:0.1.0`
+
+## Requirements
+
+- Java 17 or newer for normal JVM builds.
+- GraalVM with `native-image` for the native smoke lane.
+- Gradle wrapper from this repository.
+
+## Modules
 
 - `modules/core` contains the runtime API.
 - `modules/generator` contains JDK-only build-time source generation support.
@@ -19,54 +37,73 @@ The design is intentionally plain:
 - `docs/architecture/architecture-rule-catalog.md` documents the rules enforced by ArchUnit.
 - `build-logic` contains small Gradle convention plugins shared by the modules.
 
-## Quick Start
-
-Run the normal local gate:
-
-```bash
-./gradlew qualityGate
-```
-
-Run a narrower JVM test pass:
-
-```bash
-./gradlew checkAll
-```
-
-Run the native-image smoke lane when GraalVM `native-image` is available:
-
-```bash
-./gradlew nativeSmoke
-```
-
-Print planned published coordinates:
-
-```bash
-./gradlew printPublishedArtifacts
-```
-
-## Dependency Injection Model
+## Manual Dependency Injection
 
 The core runtime is provider-based. A module receives a `Binder` and registers bindings:
 
 ```java
-binder.bind(Repository.class, context -> new Repository());
-binder.bind(Service.class, context -> new Service(context.get(Repository.class)));
+import io.github.mundanej.mjdi.AppPluginModule;
+import io.github.mundanej.mjdi.Binder;
+
+public final class AppModule implements AppPluginModule {
+    @Override
+    public void configure(Binder binder) {
+        binder.bindSingleton(Repository.class, context -> new Repository());
+        binder.bindSingleton(Service.class, context -> new Service(context.get(Repository.class)));
+    }
+}
 ```
+
+Create an `AppContext` from modules and request objects from it:
+
+```java
+import io.github.mundanej.mjdi.AppContext;
+import io.github.mundanej.mjdi.BootstrapAppContext;
+import java.util.List;
+
+AppContext context = BootstrapAppContext.create(List.of(new AppModule()));
+Service service = context.get(Service.class);
+```
+
+Normal `install(...)` calls are strict: binding the same key twice throws an exception. Use
+`installOverride(...)` only when a later module should intentionally replace an earlier binding.
+
+```java
+import io.github.mundanej.mjdi.Binder;
+
+AppContext context = new Binder()
+        .install(new AppModule())
+        .installOverride(new TestOverrideModule())
+        .build();
+```
+
+Named scalar values can be looked up with convenience methods:
+
+```java
+String mode = context.getNamedString("mode");
+int port = context.getNamedInt("port");
+boolean enabled = context.getNamedBool("enabled");
+```
+
+## Generated Modules
 
 `@Inject` and `@Named` are metadata for generator and architecture tests. The runtime core does not
 scan annotations or use reflection to create objects.
 
-Generated modules use singleton bindings by default:
-
 ```java
-binder.bindSingleton(Service.class, context -> new Service(context.get(Repository.class)));
+import io.github.mundanej.mjdi.Inject;
+import io.github.mundanej.mjdi.Named;
+
+public final class Service {
+    @Inject
+    public Service(Repository repository, @Named("mode") String mode) {
+        // ...
+    }
+}
 ```
 
-## Generator CLI
-
-The generator scans the current Java process classpath. Put application classes on the Java
-classpath, then run:
+The generator scans the current Java process classpath at build time and writes an
+`AppPluginModule` source file. Put application classes on the Java command classpath, then run:
 
 ```bash
 java -cp "app-classes:mundane-java-di.jar:mundane-java-di-generator.jar" \
@@ -81,8 +118,47 @@ Use `--dry-run` to print generated source without writing a file. Use `--overwri
 an existing generated module with different content.
 
 Generated source is intended to be checked like normal project source. It includes public Javadocs,
-avoids unused imports, compiles with warnings as errors, and stays free of runtime reflection,
-classpath scanning, service loading, and serialization.
+compiles with warnings as errors, uses direct constructor calls, defaults to singleton bindings, and
+stays free of runtime reflection, classpath scanning, service loading, and serialization.
+
+Generated output looks like ordinary module code:
+
+```java
+binder.bindSingleton(Service.class,
+        context -> new Service(context.get(Repository.class), context.getNamedString("mode")));
+```
+
+## Build And Verification
+
+Run the normal local gate:
+
+```bash
+./gradlew qualityGate
+```
+
+Run all JVM checks:
+
+```bash
+./gradlew checkAll
+```
+
+Run the native-image smoke lane when GraalVM `native-image` is available:
+
+```bash
+./gradlew nativeSmoke
+```
+
+Build Javadocs:
+
+```bash
+./gradlew javadoc
+```
+
+Print artifact coordinates:
+
+```bash
+./gradlew printPublishedArtifacts
+```
 
 ## Architecture Rules
 
@@ -95,18 +171,6 @@ The rules are grouped into:
 - rules specific to this project;
 - rules for GraalVM Native Image friendly Java code;
 - baseline Java rules that keep the library predictable.
-
-## Javadocs
-
-Public production APIs include Javadocs written for new contributors. The goal is to explain what
-each type does in normal language before a contributor has to understand every implementation
-detail.
-
-Build Javadocs locally with:
-
-```bash
-./gradlew javadoc
-```
 
 ## Use Of Coding Agents
 
